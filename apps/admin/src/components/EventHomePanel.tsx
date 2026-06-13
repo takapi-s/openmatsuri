@@ -2,7 +2,7 @@
 
 import { AdminCard } from "@/components/AdminCard";
 import { parseCenter } from "@/lib/map";
-import { MatsuriMap } from "@openmatsuri/map";
+import { DEFAULT_HEATMAP_BLUR, MatsuriMap } from "@openmatsuri/map";
 import {
   countOnlineTrackers,
   filterOnlineLocations,
@@ -39,6 +39,7 @@ export function EventHomePanel({
 }: Props) {
   const supabase = useMemo(() => createClient(), []);
   const [showVisitorHeatmap, setShowVisitorHeatmap] = useState(false);
+  const [heatmapBlur, setHeatmapBlur] = useState(DEFAULT_HEATMAP_BLUR);
   const { locations, loading: locationsLoading, error: locationsError, lastReceivedAt } =
     useTrackerLocations(supabase, event.id);
   const onlineNow = useTrackerOnlineClock();
@@ -192,6 +193,25 @@ export function EventHomePanel({
                 </span>
               )}
             </div>
+            {showVisitorHeatmap && (
+              <label className="flex flex-wrap items-center gap-3 pt-1 text-sm text-slate-600">
+                <span className="font-medium text-slate-700">ぼかし</span>
+                <input
+                  type="range"
+                  min={5}
+                  max={100}
+                  step={1}
+                  value={heatmapBlur}
+                  onChange={(event) =>
+                    setHeatmapBlur(Number.parseInt(event.target.value, 10) || DEFAULT_HEATMAP_BLUR)
+                  }
+                  className="h-2 w-36 cursor-pointer accent-indigo-600"
+                />
+                <span className="tabular-nums text-slate-500">
+                  {heatmapBlur <= 15 ? "くっきり" : heatmapBlur >= 60 ? "強め" : "標準"}
+                </span>
+              </label>
+            )}
           </div>
           <div className="h-[28rem] overflow-hidden rounded-lg border border-slate-200">
             <MatsuriMap
@@ -205,6 +225,7 @@ export function EventHomePanel({
               initialViewReady={!locationsLoading}
               showHeatmap={showVisitorHeatmap}
               heatmapPoints={heatmapPoints}
+              heatmapBlur={heatmapBlur}
             />
           </div>
         </AdminCard>

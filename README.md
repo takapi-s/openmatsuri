@@ -112,6 +112,10 @@ PostgreSQL + PostGIS（Supabase）のスキーマ・RLS・データフローは 
 
 [docs/soracom-setup.md](./docs/soracom-setup.md) を参照。
 
+## ロードマップ
+
+ネイティブアプリ（Viewer / Tracker）の展開計画は [docs/native-roadmap.md](./docs/native-roadmap.md) を参照。
+
 ## コントリビュート歓迎
 
 OpenMATSURI は OSS です。**Issue・PR・フィードバックを歓迎します。**
@@ -128,4 +132,4 @@ OpenMATSURI は OSS です。**Issue・PR・フィードバックを歓迎しま
 
 ## ライセンス
 
-MIT
+[MIT License](./LICENSE) © 2025 takapi-s

@@ -55,6 +55,8 @@ export type MatsuriMapProps = {
   /** Aggregated visitor distribution for operator heatmap overlay. */
   heatmapPoints?: Array<{ lng: number; lat: number; weight?: number }>;
   showHeatmap?: boolean;
+  /** Heatmap blur strength (5–100). 25 matches the original default spread. */
+  heatmapBlur?: number;
   className?: string;
   styleUrl?: string;
 };
@@ -70,6 +72,57 @@ type TrackerMarkerState = {
   animationFrameId?: number;
   targetCoords?: [number, number];
 };
+
+export const DEFAULT_HEATMAP_BLUR = 25;
+
+function heatmapBlurScale(blur: number): number {
+  const clamped = Math.max(5, Math.min(100, blur));
+  return clamped / DEFAULT_HEATMAP_BLUR;
+}
+
+function heatmapLayerPaint(blur: number) {
+  const scale = heatmapBlurScale(blur);
+  const intensityScale = Math.sqrt(scale);
+  return {
+    "heatmap-weight": ["coalesce", ["get", "weight"], 1],
+    "heatmap-intensity": [
+      "interpolate",
+      ["linear"],
+      ["zoom"],
+      10,
+      0.8 * intensityScale,
+      16,
+      2.5 * intensityScale,
+    ],
+    "heatmap-color": [
+      "interpolate",
+      ["linear"],
+      ["heatmap-density"],
+      0,
+      "rgba(59,130,246,0)",
+      0.15,
+      "rgba(59,130,246,0.45)",
+      0.35,
+      "rgba(34,197,94,0.55)",
+      0.55,
+      "rgba(234,179,8,0.7)",
+      0.75,
+      "rgba(239,68,68,0.85)",
+      1,
+      "rgba(185,28,28,0.95)",
+    ],
+    "heatmap-radius": [
+      "interpolate",
+      ["linear"],
+      ["zoom"],
+      10,
+      12 * scale,
+      16,
+      32 * scale,
+    ],
+    "heatmap-opacity": 0.75,
+  };
+}
 
 function escapeHtml(text: string): string {
   return text
@@ -167,6 +220,7 @@ export function MatsuriMap({
   focusZoom,
   heatmapPoints = [],
   showHeatmap = false,
+  heatmapBlur = DEFAULT_HEATMAP_BLUR,
   className,
   styleUrl = typeof process !== "undefined"
     ? process.env.NEXT_PUBLIC_MAP_STYLE_URL ?? DEFAULT_MAP_STYLE
@@ -585,9 +639,15 @@ export function MatsuriMap({
       })),
     };
 
+    const paint = heatmapLayerPaint(heatmapBlur);
+
     const existing = map.getSource(sourceId);
     if (existing && "setData" in existing) {
       (existing as maplibregl.GeoJSONSource).setData(featureCollection);
+      if (map.getLayer(layerId)) {
+        map.setPaintProperty(layerId, "heatmap-radius", paint["heatmap-radius"]);
+        map.setPaintProperty(layerId, "heatmap-intensity", paint["heatmap-intensity"]);
+      }
       return;
     }
 
@@ -599,31 +659,9 @@ export function MatsuriMap({
       id: layerId,
       type: "heatmap",
       source: sourceId,
-      paint: {
-        "heatmap-weight": ["coalesce", ["get", "weight"], 1],
-        "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 10, 0.8, 16, 2.5],
-        "heatmap-color": [
-          "interpolate",
-          ["linear"],
-          ["heatmap-density"],
-          0,
-          "rgba(59,130,246,0)",
-          0.15,
-          "rgba(59,130,246,0.45)",
-          0.35,
-          "rgba(34,197,94,0.55)",
-          0.55,
-          "rgba(234,179,8,0.7)",
-          0.75,
-          "rgba(239,68,68,0.85)",
-          1,
-          "rgba(185,28,28,0.95)",
-        ],
-        "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 10, 12, 16, 32],
-        "heatmap-opacity": 0.75,
-      },
+      paint: paint as maplibregl.HeatmapLayerSpecification["paint"],
     });
-  }, [ready, showHeatmap, heatmapPoints]);
+  }, [ready, showHeatmap, heatmapPoints, heatmapBlur]);
 
   useEffect(() => {
     if (!ready) return;
