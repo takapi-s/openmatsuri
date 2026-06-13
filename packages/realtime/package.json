@@ -1,0 +1,23 @@
+{
+  "name": "@openmatsuri/realtime",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./src/client.ts",
+  "types": "./src/client.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./client": "./src/client.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.47.10",
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^19.0.1",
+    "typescript": "^5.7.2"
+  }
+}

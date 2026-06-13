@@ -1,0 +1,5 @@
+[functions.ingest-location]
+verify_jwt = false
+
+[functions.ingest-soracom]
+verify_jwt = false

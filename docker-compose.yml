@@ -1,0 +1,60 @@
+services:
+  # Supabase local stack — requires Docker
+  # Run: docker compose up supabase-db -d && supabase db reset (with linked project)
+  # Or use: supabase start (recommended — wraps full stack)
+
+  supabase-db:
+    image: supabase/postgres:15.8.1.060
+    container_name: openmatsuri-db
+    ports:
+      - "54322:5432"
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    volumes:
+      - openmatsuri-db:/var/lib/postgresql/data
+      - ./supabase/migrations:/docker-entrypoint-initdb.d/migrations:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  viewer:
+    build:
+      context: .
+      dockerfile: apps/viewer/Dockerfile
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.example
+    depends_on:
+      supabase-db:
+        condition: service_healthy
+
+  tracker:
+    build:
+      context: .
+      dockerfile: apps/tracker/Dockerfile
+    ports:
+      - "3001:3001"
+    env_file:
+      - .env.example
+    depends_on:
+      supabase-db:
+        condition: service_healthy
+
+  admin:
+    build:
+      context: .
+      dockerfile: apps/admin/Dockerfile
+    ports:
+      - "3002:3002"
+    env_file:
+      - .env.example
+    depends_on:
+      supabase-db:
+        condition: service_healthy
+
+volumes:
+  openmatsuri-db:
