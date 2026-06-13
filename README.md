@@ -114,7 +114,10 @@ PostgreSQL + PostGIS（Supabase）のスキーマ・RLS・データフローは 
 
 ## ロードマップ
 
-ネイティブアプリ（Viewer / Tracker）の展開計画は [docs/native-roadmap.md](./docs/native-roadmap.md) を参照。
+| ドキュメント | 内容 |
+|-------------|------|
+| [docs/roadmap.md](./docs/roadmap.md) | 製品機能（トラッカーアイコン、イベントアイコン、フィードバックなど） |
+| [docs/native-roadmap.md](./docs/native-roadmap.md) | ネイティブアプリ（Viewer / Tracker）の Expo 展開 |
 
 ## コントリビュート歓迎
 
