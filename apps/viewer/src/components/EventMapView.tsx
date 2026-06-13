@@ -2,16 +2,22 @@
 
 import { MatsuriMap } from "@openmatsuri/map";
 import {
+  filterOnlineLocations,
+  isTrackerOnline,
   useEventPois,
   useTrackerLocations,
+  useTrackerOnlineClock,
   type EventRow,
   type PoiRow,
   type RouteRow,
   type TrackerRow,
 } from "@openmatsuri/realtime/client";
+import { hasViewerLocationConsent } from "@openmatsuri/viewer-ingest";
 import { AppShell } from "@openmatsuri/ui";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getSupabase, parseMapCenter } from "@/lib/supabase";
+import { useViewerLocationReporter } from "@/hooks/useViewerLocationReporter";
+import { ViewerLocationConsent } from "@/components/ViewerLocationConsent";
 
 type Props = {
   event: EventRow;
@@ -53,18 +59,59 @@ function IconChevronDown({ className }: { className?: string }) {
   );
 }
 
-export function EventMapView({ event, trackers, pois: initialPois, routes, embed }: Props) {
+export function EventMapView(props: Props) {
+  const [consentReady, setConsentReady] = useState(false);
+  const [consented, setConsented] = useState(false);
+
+  useEffect(() => {
+    setConsented(hasViewerLocationConsent(props.event.id));
+    setConsentReady(true);
+  }, [props.event.id]);
+
+  if (!consentReady) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-100 text-sm text-slate-500">
+        読み込み中...
+      </div>
+    );
+  }
+
+  if (!consented) {
+    return (
+      <ViewerLocationConsent
+        event={props.event}
+        embed={props.embed}
+        onConsent={() => setConsented(true)}
+      />
+    );
+  }
+
+  return <EventMapViewInner {...props} />;
+}
+
+function EventMapViewInner({ event, trackers, pois: initialPois, routes, embed }: Props) {
   const supabase = useMemo(() => getSupabase(), []);
-  const { locations, loading } = useTrackerLocations(supabase, event.id);
+  const { locations, loading, lastReceivedAt } = useTrackerLocations(supabase, event.id);
   const { pois } = useEventPois(supabase, event.id, initialPois);
+  const onlineNow = useTrackerOnlineClock();
   const [selectedTracker, setSelectedTracker] = useState<TrackerRow | null>(null);
   const [focusUserSignal, setFocusUserSignal] = useState(0);
   const [focusTrackerSignal, setFocusTrackerSignal] = useState(0);
 
+  useViewerLocationReporter({ eventId: event.id, enabled: true });
+
   const center = parseMapCenter(event.map_center);
-  const liveCount = locations.length;
+  const onlineLocations = useMemo(
+    () => filterOnlineLocations(trackers, locations, lastReceivedAt, onlineNow),
+    [trackers, locations, lastReceivedAt, onlineNow],
+  );
+  const liveCount = onlineLocations.length;
   const focusZoom = Math.max(event.map_zoom, 15);
   const locationByTracker = useMemo(
+    () => new Map(onlineLocations.map((loc) => [loc.tracker_id, loc])),
+    [onlineLocations],
+  );
+  const allLocationByTracker = useMemo(
     () => new Map(locations.map((loc) => [loc.tracker_id, loc])),
     [locations],
   );
@@ -120,7 +167,12 @@ export function EventMapView({ event, trackers, pois: initialPois, routes, embed
             >
               <option value="">トラッカーを選択</option>
               {trackers.map((tracker) => {
-                const live = locationByTracker.has(tracker.id);
+                const live = isTrackerOnline(
+                  tracker,
+                  allLocationByTracker.get(tracker.id),
+                  lastReceivedAt[tracker.id],
+                  onlineNow,
+                );
                 return (
                   <option key={tracker.id} value={tracker.id}>
                     {tracker.name}
@@ -162,13 +214,12 @@ export function EventMapView({ event, trackers, pois: initialPois, routes, embed
         center={center}
         zoom={event.map_zoom}
         trackers={trackers}
-        locations={locations}
+        locations={onlineLocations}
         pois={pois}
         routes={routes.filter((r) => r.is_visible)}
         onTrackerClick={setSelectedTracker}
         initialViewReady={!loading}
         showUserLocation
-        followTrackersCenter={false}
         focusUserSignal={focusUserSignal}
         focusTracker={
           selectedTracker

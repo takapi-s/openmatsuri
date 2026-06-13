@@ -3,7 +3,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import type { Database, PoiRow, TrackerLocationRow } from "./database.types";
-import { getRealtimeMode } from "./index";
+import { getRealtimeMode, parseGeoPoint } from "./index";
 
 const LOCATION_POLL_MS = 8_000;
 
@@ -49,7 +49,8 @@ export function useTrackerLocations(
       const receivedTrackerIds = incoming
         .filter((row) => {
           const previous = prev.find((item) => item.tracker_id === row.tracker_id);
-          return !previous || previous.updated_at !== row.updated_at;
+          if (!previous) return prev.length > 0;
+          return previous.updated_at !== row.updated_at;
         })
         .map((row) => row.tracker_id);
       touchTrackerReceived(setLastReceivedAt, receivedTrackerIds);
@@ -74,10 +75,6 @@ export function useTrackerLocations(
         else {
           const rows = data ?? [];
           setLocations(rows);
-          touchTrackerReceived(
-            setLastReceivedAt,
-            rows.map((row) => row.tracker_id),
-          );
           setError(null);
         }
         setLoading(false);
@@ -253,4 +250,103 @@ export function isTrackerStale(
 ): boolean {
   if (isTrackerOnline(tracker, location, clientReceivedAt, now)) return false;
   return !!getTrackerLastSeenAt(tracker, location);
+}
+
+type TrackerWithLastSeen = { id: string; last_seen_at: string | null };
+
+export function filterOnlineLocations(
+  trackers: TrackerWithLastSeen[],
+  locations: TrackerLocationRow[],
+  lastReceivedAt: Record<string, number> = {},
+  now = Date.now(),
+): TrackerLocationRow[] {
+  const trackerById = new Map(trackers.map((tracker) => [tracker.id, tracker]));
+  return locations.filter((location) => {
+    const tracker = trackerById.get(location.tracker_id);
+    if (!tracker) return false;
+    return isTrackerOnline(tracker, location, lastReceivedAt[location.tracker_id], now);
+  });
+}
+
+export function countOnlineTrackers(
+  trackers: TrackerWithLastSeen[],
+  locations: TrackerLocationRow[],
+  lastReceivedAt: Record<string, number> = {},
+  now = Date.now(),
+): number {
+  const locationByTracker = new Map(locations.map((location) => [location.tracker_id, location]));
+  return trackers.filter((tracker) =>
+    isTrackerOnline(tracker, locationByTracker.get(tracker.id), lastReceivedAt[tracker.id], now),
+  ).length;
+}
+
+/** Re-render consumers when trackers cross the online/stale threshold. */
+export function useTrackerOnlineClock(intervalMs = 10_000): number {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), intervalMs);
+    return () => window.clearInterval(id);
+  }, [intervalMs]);
+
+  return now;
+}
+
+export type HeatmapPoint = { lng: number; lat: number; weight: number };
+
+const HEATMAP_POLL_MS = 60_000;
+export const VIEWER_HEATMAP_WINDOW_MS = 60 * 60_000;
+
+export function useViewerHeatmapPoints(
+  supabase: SupabaseClient<Database>,
+  eventId: string | null,
+  enabled: boolean,
+  windowMs = VIEWER_HEATMAP_WINDOW_MS,
+) {
+  const [points, setPoints] = useState<HeatmapPoint[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchPoints = useCallback(async () => {
+    if (!eventId || !enabled) return;
+
+    setLoading(true);
+    const since = new Date(Date.now() - windowMs).toISOString();
+    const { data, error: fetchError } = await supabase
+      .from("viewer_location_points")
+      .select("location")
+      .eq("event_id", eventId)
+      .gte("recorded_at", since);
+
+    setLoading(false);
+    if (fetchError) {
+      setError(fetchError.message);
+      return;
+    }
+
+    const next: HeatmapPoint[] = [];
+    for (const row of data ?? []) {
+      const coords = parseGeoPoint(row.location);
+      if (!coords) continue;
+      next.push({ lng: coords[0], lat: coords[1], weight: 1 });
+    }
+    setPoints(next);
+    setError(null);
+  }, [supabase, eventId, enabled, windowMs]);
+
+  useEffect(() => {
+    if (!enabled || !eventId) {
+      setPoints([]);
+      setError(null);
+      return;
+    }
+
+    void fetchPoints();
+    const id = window.setInterval(() => {
+      void fetchPoints();
+    }, HEATMAP_POLL_MS);
+    return () => window.clearInterval(id);
+  }, [enabled, eventId, fetchPoints]);
+
+  return { points, loading, error, refetch: fetchPoints };
 }

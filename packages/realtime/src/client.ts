@@ -1,5 +1,7 @@
 export * from "./index";
 export {
+  countOnlineTrackers,
+  filterOnlineLocations,
   getTrackerLastSeenAt,
   isTrackerOnline,
   isTrackerStale,
@@ -7,4 +9,7 @@ export {
   TRACKER_STALE_MS,
   useEventPois,
   useTrackerLocations,
+  useTrackerOnlineClock,
+  useViewerHeatmapPoints,
+  VIEWER_HEATMAP_WINDOW_MS,
 } from "./hooks";

@@ -507,7 +507,6 @@ export function PoiManagement({ event, initialPois }: Props) {
             center={mapCenter}
             zoom={event.map_zoom}
             pois={pois}
-            followTrackersCenter={false}
             initialViewReady
             mapClickMode={placementMode !== "idle"}
             onMapClick={handleMapClick}

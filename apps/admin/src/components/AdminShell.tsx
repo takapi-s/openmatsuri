@@ -10,6 +10,7 @@ import {
   IconHome,
   IconLogo,
   IconLogout,
+  IconMap,
   IconMenu,
   IconPoi,
   IconRoute,
@@ -25,6 +26,7 @@ type Props = {
 
 const NAV_ITEMS = [
   { href: "", label: "ホーム", Icon: IconHome },
+  { href: "/map", label: "マップ設定", Icon: IconMap },
   { href: "/trackers", label: "トラッカー", Icon: IconTracker },
   { href: "/pois", label: "POI", Icon: IconPoi },
   { href: "/routes", label: "コース", Icon: IconRoute },

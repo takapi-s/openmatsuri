@@ -495,7 +495,6 @@ export function RouteManagement({ event, initialRoutes }: Props) {
             routes={routes}
             showHiddenRoutes
             previewLines={previewLines}
-            followTrackersCenter={false}
             initialViewReady
             mapClickMode={drawMode !== "idle"}
             onMapClick={handleMapClick}

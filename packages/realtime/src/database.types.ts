@@ -21,6 +21,7 @@ export type Database = {
           status: "draft" | "live" | "archived";
           map_center: unknown;
           map_zoom: number;
+          viewer_location_retention_days: number;
           created_at: string;
         };
         Insert: Partial<Database["public"]["Tables"]["events"]["Row"]>;
@@ -103,9 +104,36 @@ export type Database = {
         Insert: Partial<Database["public"]["Tables"]["organization_members"]["Row"]>;
         Update: Partial<Database["public"]["Tables"]["organization_members"]["Row"]>;
       };
+      viewer_sessions: {
+        Row: {
+          id: string;
+          event_id: string;
+          session_token: string;
+          consented_at: string;
+          last_seen_at: string;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["viewer_sessions"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["viewer_sessions"]["Row"]>;
+      };
+      viewer_location_points: {
+        Row: {
+          id: number;
+          session_id: string;
+          event_id: string;
+          location: unknown;
+          accuracy: number | null;
+          recorded_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["viewer_location_points"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["viewer_location_points"]["Row"]>;
+      };
     };
   };
 };
+
+export type ViewerLocationPointRow =
+  Database["public"]["Tables"]["viewer_location_points"]["Row"];
 
 export type TrackerLocationRow =
   Database["public"]["Tables"]["tracker_locations"]["Row"];

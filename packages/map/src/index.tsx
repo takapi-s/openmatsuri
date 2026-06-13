@@ -9,13 +9,10 @@ import { useEffect, useRef, useState } from "react";
 import { animateMarkerLngLat, cancelMarkerAnimation } from "./animate-marker";
 import {
   applyZoomOffset,
-  averageCoords,
   coordsChangedSignificantly,
-  MAP_CENTER_FOLLOW_THRESHOLD,
 } from "./fit-view";
 
 const DEFAULT_MARKER_ANIMATION_MS = 2_500;
-const DEFAULT_ZOOM_OFFSET = -2;
 
 export type MatsuriMapProps = {
   center?: [number, number];
@@ -43,12 +40,8 @@ export type MatsuriMapProps = {
   markerAnimationMs?: number;
   /** Wait until location fetch finishes before applying the initial viewport. */
   initialViewReady?: boolean;
-  /** Zoom adjustment applied once on initial load (default: -2). */
+  /** Zoom adjustment applied when centering on user GPS at start. */
   initialZoomOffset?: number;
-  /** Smoothly pan the map center to follow tracker centroid. */
-  followTrackersCenter?: boolean;
-  /** Re-center on tracker centroid on this interval (ms). Uses live marker positions. */
-  followTrackersCenterIntervalMs?: number;
   /** Externally supplied user position (e.g. Tracker PWA). */
   userPosition?: { lng: number; lat: number; accuracy?: number } | null;
   /** Keep the map viewport centered on userPosition. */
@@ -59,6 +52,9 @@ export type MatsuriMapProps = {
   focusTracker?: { trackerId: string; signal: number } | null;
   /** Zoom level used when focusing on user or tracker (defaults to current zoom). */
   focusZoom?: number;
+  /** Aggregated visitor distribution for operator heatmap overlay. */
+  heatmapPoints?: Array<{ lng: number; lat: number; weight?: number }>;
+  showHeatmap?: boolean;
   className?: string;
   styleUrl?: string;
 };
@@ -145,27 +141,6 @@ function updatePoiElement(element: HTMLElement, poi: PoiRow): void {
   }
 }
 
-function collectLiveTrackerCoords(
-  locations: TrackerLocationRow[],
-  markerStates: Map<string, TrackerMarkerState>,
-): [number, number][] {
-  const coords: [number, number][] = [];
-
-  for (const loc of locations) {
-    const state = markerStates.get(loc.tracker_id);
-    if (state) {
-      const { lng, lat } = state.marker.getLngLat();
-      coords.push([lng, lat]);
-      continue;
-    }
-
-    const parsed = parseGeoPoint(loc.location);
-    if (parsed) coords.push(parsed);
-  }
-
-  return coords;
-}
-
 export function MatsuriMap({
   center = [135.5023, 34.6937],
   zoom = 14,
@@ -184,14 +159,14 @@ export function MatsuriMap({
   centerOnUserOnStart = false,
   markerAnimationMs = DEFAULT_MARKER_ANIMATION_MS,
   initialViewReady = true,
-  initialZoomOffset = DEFAULT_ZOOM_OFFSET,
-  followTrackersCenter = true,
-  followTrackersCenterIntervalMs,
+  initialZoomOffset = 0,
   userPosition = null,
   centerOnUserPosition = false,
   focusUserSignal = 0,
   focusTracker = null,
   focusZoom,
+  heatmapPoints = [],
+  showHeatmap = false,
   className,
   styleUrl = typeof process !== "undefined"
     ? process.env.NEXT_PUBLIC_MAP_STYLE_URL ?? DEFAULT_MAP_STYLE
@@ -213,6 +188,7 @@ export function MatsuriMap({
   const mapCenterTargetRef = useRef<[number, number] | null>(null);
   const lastUserCoordsRef = useRef<[number, number] | null>(null);
   const bootViewRef = useRef({ center, zoom });
+  const appliedViewRef = useRef({ center, zoom });
   const [ready, setReady] = useState(false);
 
   onTrackerClickRef.current = onTrackerClick;
@@ -346,88 +322,46 @@ export function MatsuriMap({
   }, [ready]);
 
   useEffect(() => {
-    if (!ready || !initialViewReady || !followTrackersCenter) return;
+    if (!ready || !initialViewReady || initialViewAppliedRef.current) return;
 
     const map = mapRef.current;
     if (!map) return;
 
-    const trackerCoords = collectLiveTrackerCoords(locations, trackerMarkersRef.current);
-    const nextCenter = averageCoords(trackerCoords) ?? center;
-    const previousCenter = mapCenterTargetRef.current;
-    if (previousCenter && !coordsChangedSignificantly(previousCenter, nextCenter)) {
-      return;
-    }
-
-    mapCenterTargetRef.current = nextCenter;
+    mapCenterTargetRef.current = center;
+    appliedViewRef.current = { center, zoom };
     map.easeTo({
-      center: nextCenter,
-      zoom: initialViewAppliedRef.current ? map.getZoom() : applyZoomOffset(zoom, initialZoomOffset),
+      center,
+      zoom,
       duration: markerAnimationMs,
       essential: true,
     });
     initialViewAppliedRef.current = true;
-  }, [
-    ready,
-    initialViewReady,
-    followTrackersCenter,
-    locations,
-    center,
-    zoom,
-    initialZoomOffset,
-    markerAnimationMs,
-  ]);
+  }, [ready, initialViewReady, center, zoom, markerAnimationMs]);
 
   useEffect(() => {
-    if (
-      !ready ||
-      !initialViewReady ||
-      !followTrackersCenter ||
-      followTrackersCenterIntervalMs == null
-    ) {
-      return;
-    }
+    if (!ready || !initialViewReady || !initialViewAppliedRef.current) return;
 
     const map = mapRef.current;
     if (!map) return;
 
-    const tick = () => {
-      const trackerCoords = collectLiveTrackerCoords(locations, trackerMarkersRef.current);
-      const nextCenter = averageCoords(trackerCoords);
-      if (!nextCenter) return;
+    const applied = appliedViewRef.current;
+    if (
+      applied.center[0] === center[0] &&
+      applied.center[1] === center[1] &&
+      applied.zoom === zoom
+    ) {
+      return;
+    }
 
-      const currentCenter = map.getCenter();
-      const viewport: [number, number] = [currentCenter.lng, currentCenter.lat];
-      const targetMoved = mapCenterTargetRef.current
-        ? coordsChangedSignificantly(mapCenterTargetRef.current, nextCenter, MAP_CENTER_FOLLOW_THRESHOLD)
-        : true;
-      const viewportDrifted = coordsChangedSignificantly(
-        viewport,
-        nextCenter,
-        MAP_CENTER_FOLLOW_THRESHOLD,
-      );
-
-      if (!targetMoved && !viewportDrifted) return;
-
-      mapCenterTargetRef.current = nextCenter;
-      map.easeTo({
-        center: nextCenter,
-        zoom: map.getZoom(),
-        duration: markerAnimationMs,
-        essential: true,
-      });
-      initialViewAppliedRef.current = true;
-    };
-
-    const id = window.setInterval(tick, followTrackersCenterIntervalMs);
-    return () => window.clearInterval(id);
-  }, [
-    ready,
-    initialViewReady,
-    followTrackersCenter,
-    followTrackersCenterIntervalMs,
-    locations,
-    markerAnimationMs,
-  ]);
+    appliedViewRef.current = { center, zoom };
+    mapCenterTargetRef.current = center;
+    map.easeTo({
+      center,
+      zoom,
+      duration: markerAnimationMs,
+      essential: true,
+    });
+  }, [ready, initialViewReady, center, zoom, markerAnimationMs]);
 
   useEffect(() => {
     if (!ready) return;
@@ -624,6 +558,72 @@ export function MatsuriMap({
       el.title = tracker.name;
     });
   }, [trackers, ready]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+
+    const sourceId = "viewer-heatmap-source";
+    const layerId = "viewer-heatmap-layer";
+
+    if (!showHeatmap || heatmapPoints.length === 0) {
+      if (map.getLayer(layerId)) map.removeLayer(layerId);
+      if (map.getSource(sourceId)) map.removeSource(sourceId);
+      return;
+    }
+
+    const featureCollection = {
+      type: "FeatureCollection" as const,
+      features: heatmapPoints.map((point, index) => ({
+        type: "Feature" as const,
+        id: index,
+        properties: { weight: point.weight ?? 1 },
+        geometry: {
+          type: "Point" as const,
+          coordinates: [point.lng, point.lat],
+        },
+      })),
+    };
+
+    const existing = map.getSource(sourceId);
+    if (existing && "setData" in existing) {
+      (existing as maplibregl.GeoJSONSource).setData(featureCollection);
+      return;
+    }
+
+    if (map.getLayer(layerId)) map.removeLayer(layerId);
+    if (map.getSource(sourceId)) map.removeSource(sourceId);
+
+    map.addSource(sourceId, { type: "geojson", data: featureCollection });
+    map.addLayer({
+      id: layerId,
+      type: "heatmap",
+      source: sourceId,
+      paint: {
+        "heatmap-weight": ["coalesce", ["get", "weight"], 1],
+        "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 10, 0.8, 16, 2.5],
+        "heatmap-color": [
+          "interpolate",
+          ["linear"],
+          ["heatmap-density"],
+          0,
+          "rgba(59,130,246,0)",
+          0.15,
+          "rgba(59,130,246,0.45)",
+          0.35,
+          "rgba(34,197,94,0.55)",
+          0.55,
+          "rgba(234,179,8,0.7)",
+          0.75,
+          "rgba(239,68,68,0.85)",
+          1,
+          "rgba(185,28,28,0.95)",
+        ],
+        "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 10, 12, 16, 32],
+        "heatmap-opacity": 0.75,
+      },
+    });
+  }, [ready, showHeatmap, heatmapPoints]);
 
   useEffect(() => {
     if (!ready) return;

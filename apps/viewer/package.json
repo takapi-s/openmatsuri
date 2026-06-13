@@ -14,6 +14,7 @@
     "@openmatsuri/map": "workspace:*",
     "@openmatsuri/realtime": "workspace:*",
     "@openmatsuri/ui": "workspace:*",
+    "@openmatsuri/viewer-ingest": "workspace:*",
     "@supabase/supabase-js": "^2.47.10",
     "next": "15.1.0",
     "react": "^19.0.0",

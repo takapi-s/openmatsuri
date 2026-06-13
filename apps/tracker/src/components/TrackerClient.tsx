@@ -194,7 +194,6 @@ export function TrackerClient({ token, trackerName }: Props) {
               <MatsuriMap
                 className="h-full"
                 zoom={16}
-                followTrackersCenter={false}
                 initialViewReady
                 userPosition={currentPosition}
                 centerOnUserPosition

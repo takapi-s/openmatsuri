@@ -35,6 +35,15 @@ export const ingestLocationSchema = z.object({
   source: locationSourceSchema.default("pwa"),
 });
 
+export const ingestViewerLocationSchema = z.object({
+  session_token: z.string().uuid(),
+  event_id: z.string().uuid(),
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
+  accuracy: z.number().optional(),
+  recorded_at: z.string().datetime().optional(),
+});
+
 export const soracomPayloadSchema = z.object({
   lat: z.number(),
   lon: z.number().optional(),
@@ -49,6 +58,7 @@ export type PoiKind = z.infer<typeof poiKindSchema>;
 export type OrgRole = z.infer<typeof orgRoleSchema>;
 export type LocationSource = z.infer<typeof locationSourceSchema>;
 export type IngestLocationPayload = z.infer<typeof ingestLocationSchema>;
+export type IngestViewerLocationPayload = z.infer<typeof ingestViewerLocationSchema>;
 export type SoracomPayload = z.infer<typeof soracomPayloadSchema>;
 
 export const POI_KIND_LABELS: Record<PoiKind, string> = {

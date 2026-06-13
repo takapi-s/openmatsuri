@@ -74,6 +74,7 @@ export async function createEvent(
     name,
     status: "draft",
     map_zoom: 14,
+    viewer_location_retention_days: 365,
     map_center: toGeographyEwkt(135.5023, 34.6937),
   });
 
@@ -90,6 +91,7 @@ export async function createEvent(
       status: "draft",
       map_center: null,
       map_zoom: 14,
+      viewer_location_retention_days: 365,
       created_at: new Date().toISOString(),
     },
     error: null,

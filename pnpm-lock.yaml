@@ -148,6 +148,9 @@ importers:
       '@openmatsuri/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@openmatsuri/viewer-ingest':
+        specifier: workspace:*
+        version: link:../../packages/viewer-ingest
       '@supabase/supabase-js':
         specifier: ^2.47.10
         version: 2.108.1
@@ -268,6 +271,16 @@ importers:
       '@types/react':
         specifier: ^19.0.1
         version: 19.2.17
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+
+  packages/viewer-ingest:
+    dependencies:
+      '@openmatsuri/config':
+        specifier: workspace:*
+        version: link:../config
+    devDependencies:
       typescript:
         specifier: ^5.7.2
         version: 5.9.3

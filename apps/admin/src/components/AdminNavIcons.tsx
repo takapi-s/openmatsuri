@@ -32,6 +32,18 @@ export function IconPoi({ className = "size-5" }: IconProps) {
   );
 }
 
+export function IconMap({ className = "size-5" }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+      <path
+        fillRule="evenodd"
+        d="M8.157 2.175a1.5 1.5 0 00-1.147 0l-4.084 1.69A1.5 1.5 0 002 5.25v9.5a1.5 1.5 0 001.926 1.44l4.084-1.69a1.5 1.5 0 011.147 0l4.084 1.69A1.5 1.5 0 0018 14.75v-9.5a1.5 1.5 0 00-1.926-1.44l-4.084-1.69zM6.5 4.82v10.36l-3.5 1.45V6.27l3.5-1.45zm1 0l3.5-1.45v10.81l-3.5 1.45V4.82zm5 0l3.5-1.45v10.36l-3.5 1.45V4.82z"
+        clipRule="evenodd"
+      />
+    </svg>
+  );
+}
+
 export function IconRoute({ className = "size-5" }: IconProps) {
   return (
     <svg className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden>

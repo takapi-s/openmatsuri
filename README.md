@@ -41,7 +41,7 @@ supabase db reset
 ### 3. Edge Functions
 
 ```bash
-supabase functions serve ingest-location ingest-soracom --env-file .env.example
+supabase functions serve ingest-location ingest-soracom ingest-viewer-location --env-file .env.example
 ```
 
 ### 4. アプリ起動
@@ -74,6 +74,20 @@ docker compose up -d
 デフォルトは [OpenFreeMap](https://openfreemap.org/)。OSM 公式タイルサーバーは本番利用禁止です。
 
 環境変数 `NEXT_PUBLIC_MAP_STYLE_URL` で変更可能。
+
+## データベース
+
+PostgreSQL + PostGIS（Supabase）のスキーマ・RLS・データフローは [docs/database.md](./docs/database.md) を参照。
+
+主なテーブル:
+
+| グループ | テーブル | 用途 |
+|----------|----------|------|
+| テナント | `organizations`, `organization_members` | 運営組織・権限 |
+| イベント | `events` | 祭り設定・マップ初期表示 |
+| トラッカー | `trackers`, `tracker_locations`, `location_history` | 山車などのリアルタイム位置 |
+| 来場者 | `viewer_sessions`, `viewer_location_points` | 匿名位置（運営ヒートマップ用） |
+| マップ | `pois`, `routes` | 施設・コース |
 
 ## SORACOM GPS
 

@@ -4,8 +4,11 @@ import { AdminCard } from "@/components/AdminCard";
 import { parseCenter } from "@/lib/map";
 import { MatsuriMap } from "@openmatsuri/map";
 import {
-  isTrackerOnline,
+  countOnlineTrackers,
+  filterOnlineLocations,
   useTrackerLocations,
+  useTrackerOnlineClock,
+  useViewerHeatmapPoints,
   type EventRow,
   type PoiRow,
   type RouteRow,
@@ -35,8 +38,15 @@ export function EventHomePanel({
   initialRoutes,
 }: Props) {
   const supabase = useMemo(() => createClient(), []);
-  const { locations, loading: locationsLoading, error: locationsError } =
+  const [showVisitorHeatmap, setShowVisitorHeatmap] = useState(false);
+  const { locations, loading: locationsLoading, error: locationsError, lastReceivedAt } =
     useTrackerLocations(supabase, event.id);
+  const onlineNow = useTrackerOnlineClock();
+  const { points: heatmapPoints, loading: heatmapLoading } = useViewerHeatmapPoints(
+    supabase,
+    event.id,
+    showVisitorHeatmap,
+  );
   const [liveNotice, setLiveNotice] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   const prevLocationUpdatesRef = useRef<Map<string, string>>(new Map());
@@ -48,19 +58,21 @@ export function EventHomePanel({
     setMounted(true);
   }, []);
 
+  const onlineLocations = useMemo(
+    () => filterOnlineLocations(initialTrackers, locations, lastReceivedAt, onlineNow),
+    [initialTrackers, locations, lastReceivedAt, onlineNow],
+  );
+
   const onlineTrackerCount = useMemo(() => {
     if (!mounted) return 0;
-    const locationByTracker = new Map(locations.map((l) => [l.tracker_id, l]));
-    return initialTrackers.filter((tracker) =>
-      isTrackerOnline(tracker, locationByTracker.get(tracker.id)),
-    ).length;
-  }, [initialTrackers, locations, mounted]);
+    return countOnlineTrackers(initialTrackers, locations, lastReceivedAt, onlineNow);
+  }, [initialTrackers, locations, lastReceivedAt, onlineNow, mounted]);
 
   const latestLocationAt = useMemo(() => {
-    const timestamps = locations.map((location) => location.updated_at);
+    const timestamps = onlineLocations.map((location) => location.updated_at);
     if (timestamps.length === 0) return null;
     return timestamps.reduce((latest, value) => (value > latest ? value : latest));
-  }, [locations]);
+  }, [onlineLocations]);
 
   useEffect(() => {
     if (locationsLoading) return;
@@ -151,6 +163,22 @@ export function EventHomePanel({
                 位置情報の取得に失敗しました: {locationsError}
               </p>
             )}
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <Button
+                variant={showVisitorHeatmap ? "primary" : "secondary"}
+                className="!px-3 !py-1.5 !text-xs"
+                onClick={() => setShowVisitorHeatmap((value) => !value)}
+              >
+                {showVisitorHeatmap ? "来場者分布 ON" : "来場者分布 OFF"}
+              </Button>
+              {showVisitorHeatmap && (
+                <span className="text-slate-500">
+                  {heatmapLoading
+                    ? "分布を読み込み中..."
+                    : `${heatmapPoints.length} 点（直近1時間）`}
+                </span>
+              )}
+            </div>
           </div>
           <div className="h-[28rem] overflow-hidden rounded-lg border border-slate-200">
             <MatsuriMap
@@ -158,12 +186,12 @@ export function EventHomePanel({
               center={parseCenter(event.map_center)}
               zoom={event.map_zoom}
               trackers={initialTrackers}
-              locations={locations}
+              locations={onlineLocations}
               pois={initialPois}
               routes={initialRoutes}
               initialViewReady={!locationsLoading}
-              followTrackersCenter
-              followTrackersCenterIntervalMs={2_500}
+              showHeatmap={showVisitorHeatmap}
+              heatmapPoints={heatmapPoints}
             />
           </div>
         </AdminCard>
