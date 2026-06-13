@@ -40,9 +40,28 @@ supabase db reset
 
 ### 3. Edge Functions
 
+`supabase start` だけでは Edge Functions は**起動しません**。別ターミナルで次を実行してください。
+
 ```bash
+pnpm functions:dev
+# または
 supabase functions serve ingest-location ingest-soracom ingest-viewer-location --env-file .env.example
 ```
+
+起動確認:
+
+```bash
+curl http://127.0.0.1:54321/functions/v1/ingest-location -X OPTIONS
+# → "ok" が返れば OK
+```
+
+| 関数 | 用途 |
+|------|------|
+| `ingest-location` | Tracker PWA からの位置 |
+| `ingest-soracom` | SORACOM からの位置 |
+| `ingest-viewer-location` | Viewer からの匿名位置 |
+
+> `pnpm dev` は Next.js アプリ（3000/3001/3002）のみ起動します。Edge Functions は含まれません。
 
 ### 4. アプリ起動
 

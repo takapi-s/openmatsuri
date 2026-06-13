@@ -42,7 +42,8 @@ export function EventHomePanel({
   const { locations, loading: locationsLoading, error: locationsError, lastReceivedAt } =
     useTrackerLocations(supabase, event.id);
   const onlineNow = useTrackerOnlineClock();
-  const { points: heatmapPoints, loading: heatmapLoading } = useViewerHeatmapPoints(
+  const { points: heatmapPoints, loading: heatmapLoading, error: heatmapError } =
+    useViewerHeatmapPoints(
     supabase,
     event.id,
     showVisitorHeatmap,
@@ -163,6 +164,16 @@ export function EventHomePanel({
                 位置情報の取得に失敗しました: {locationsError}
               </p>
             )}
+            {heatmapError && showVisitorHeatmap && (
+              <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-red-700">
+                来場者分布の取得に失敗しました: {heatmapError}
+                {heatmapError.includes("viewer_location_points") && (
+                  <span className="mt-1 block text-xs">
+                    `supabase db reset` でマイグレーションを適用してください。
+                  </span>
+                )}
+              </p>
+            )}
             <div className="flex flex-wrap items-center gap-2 pt-1">
               <Button
                 variant={showVisitorHeatmap ? "primary" : "secondary"}
@@ -171,11 +182,13 @@ export function EventHomePanel({
               >
                 {showVisitorHeatmap ? "来場者分布 ON" : "来場者分布 OFF"}
               </Button>
-              {showVisitorHeatmap && (
+              {showVisitorHeatmap && !heatmapError && (
                 <span className="text-slate-500">
                   {heatmapLoading
                     ? "分布を読み込み中..."
-                    : `${heatmapPoints.length} 点（直近1時間）`}
+                    : heatmapPoints.length > 0
+                      ? `${heatmapPoints.length} 点（直近1時間）`
+                      : "データなし（Viewer で同意・GPS 許可後、最大2分で反映）"}
                 </span>
               )}
             </div>

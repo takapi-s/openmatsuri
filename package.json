@@ -7,7 +7,8 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "db:reset": "supabase db reset",
-    "db:types": "supabase gen types typescript --local > packages/realtime/src/database.types.ts"
+    "db:types": "supabase gen types typescript --local > packages/realtime/src/database.types.ts",
+    "functions:dev": "supabase functions serve ingest-location ingest-soracom ingest-viewer-location --env-file .env.example"
   },
   "devDependencies": {
     "supabase": "^2.106.0",

@@ -16,6 +16,7 @@ export function useViewerLocationReporter({ eventId, enabled }: Props) {
   const watchIdRef = useRef<number | null>(null);
   const lastPositionRef = useRef<GeolocationPosition | null>(null);
   const sendingRef = useRef(false);
+  const intervalIdRef = useRef<number | null>(null);
 
   const endpoint = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
@@ -28,7 +29,7 @@ export function useViewerLocationReporter({ eventId, enabled }: Props) {
 
     sendingRef.current = true;
     const { latitude, longitude, accuracy } = position.coords;
-    await postViewerLocation({
+    const result = await postViewerLocation({
       endpoint,
       anonKey,
       sessionToken: getOrCreateViewerSessionToken(eventId),
@@ -38,23 +39,40 @@ export function useViewerLocationReporter({ eventId, enabled }: Props) {
       accuracy,
     });
     sendingRef.current = false;
+
+    if (!result.ok) {
+      console.warn("[viewer-location] send failed:", result.error);
+    }
   }, [enabled, endpoint, anonKey, eventId]);
+
+  const handlePosition = useCallback(
+    (position: GeolocationPosition) => {
+      const isFirstFix = lastPositionRef.current == null;
+      lastPositionRef.current = position;
+      if (isFirstFix) {
+        void sendCurrent();
+      }
+    },
+    [sendCurrent],
+  );
 
   useEffect(() => {
     if (!enabled) return;
 
-    if (!navigator.geolocation) return;
+    if (!navigator.geolocation) {
+      console.warn("[viewer-location] geolocation not supported");
+      return;
+    }
 
     watchIdRef.current = navigator.geolocation.watchPosition(
-      (position) => {
-        lastPositionRef.current = position;
+      handlePosition,
+      (error) => {
+        console.warn("[viewer-location] geolocation error:", error.message);
       },
-      undefined,
       { enableHighAccuracy: true, maximumAge: VIEWER_LOCATION_INTERVAL_MS, timeout: 15000 },
     );
 
-    void sendCurrent();
-    const intervalId = window.setInterval(() => {
+    intervalIdRef.current = window.setInterval(() => {
       void sendCurrent();
     }, VIEWER_LOCATION_INTERVAL_MS);
 
@@ -63,8 +81,11 @@ export function useViewerLocationReporter({ eventId, enabled }: Props) {
         navigator.geolocation.clearWatch(watchIdRef.current);
         watchIdRef.current = null;
       }
-      window.clearInterval(intervalId);
+      if (intervalIdRef.current != null) {
+        window.clearInterval(intervalIdRef.current);
+        intervalIdRef.current = null;
+      }
       lastPositionRef.current = null;
     };
-  }, [enabled, sendCurrent]);
+  }, [enabled, handlePosition, sendCurrent]);
 }

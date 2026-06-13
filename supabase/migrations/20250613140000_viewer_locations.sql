@@ -126,3 +126,6 @@ create policy "viewer_location_points org read" on public.viewer_location_points
 grant execute on function public.ingest_viewer_location(
   uuid, uuid, double precision, double precision, double precision, timestamptz
 ) to anon, authenticated;
+
+grant select on public.viewer_sessions to authenticated;
+grant select on public.viewer_location_points to authenticated;
