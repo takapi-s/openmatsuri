@@ -31,7 +31,7 @@ export default async function DashboardPage() {
   const { events, organizations } = await loadAccessibleEventsForPage();
 
   return (
-    <DashboardShell>
+    <DashboardShell organization={organizations[0]}>
       <EventListPanel events={events} organizations={organizations} />
     </DashboardShell>
   );

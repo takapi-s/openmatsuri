@@ -1,7 +1,11 @@
 "use client";
 
-import { toGeographyEwkt } from "@openmatsuri/config";
 import { Button, Card, Input } from "@openmatsuri/ui";
+import {
+  createOrganizationWithEvent,
+  DEMO_ORG_ID,
+  joinOrganization,
+} from "@/lib/events";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -16,53 +20,11 @@ export function SetupOrganization() {
     setLoading(true);
     setError(null);
     const supabase = createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      setError("ログインが必要です");
-      setLoading(false);
-      return;
-    }
+    const { slug, error: setupError } = await createOrganizationWithEvent(supabase, orgName);
+    setLoading(false);
 
-    // INSERT ... RETURNING は SELECT ポリシー（メンバー限定）に阻まれるため ID を先に確定する
-    const orgId = crypto.randomUUID();
-
-    const { error: orgError } = await supabase
-      .from("organizations")
-      .insert({ id: orgId, name: orgName });
-
-    if (orgError) {
-      setError(orgError.message);
-      setLoading(false);
-      return;
-    }
-
-    const { error: memberError } = await supabase.from("organization_members").insert({
-      org_id: orgId,
-      user_id: user.id,
-      role: "owner",
-    });
-
-    if (memberError) {
-      setError(memberError.message);
-      setLoading(false);
-      return;
-    }
-
-    const slug = `matsuri-${Date.now()}`;
-    const { error: eventError } = await supabase.from("events").insert({
-      org_id: orgId,
-      slug,
-      name: "新しい祭り",
-      status: "draft",
-      map_zoom: 14,
-      map_center: toGeographyEwkt(135.5023, 34.6937),
-    });
-
-    if (eventError) {
-      setError(eventError.message);
-      setLoading(false);
+    if (setupError || !slug) {
+      setError(setupError ?? "実行委員会の作成に失敗しました");
       return;
     }
 
@@ -72,25 +34,18 @@ export function SetupOrganization() {
 
   async function joinDemoOrg() {
     setLoading(true);
+    setError(null);
     const supabase = createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const demoOrgId = "11111111-1111-1111-1111-111111111111";
-    const { error } = await supabase.from("organization_members").insert({
-      org_id: demoOrgId,
-      user_id: user.id,
-      role: "editor",
-    });
-
+    const { error: joinError } = await joinOrganization(supabase, DEMO_ORG_ID);
     setLoading(false);
-    if (error) setError(error.message);
-    else {
-      router.push("/dashboard/demo-matsuri");
-      router.refresh();
+
+    if (joinError) {
+      setError(joinError);
+      return;
     }
+
+    router.push("/dashboard/demo-matsuri");
+    router.refresh();
   }
 
   return (

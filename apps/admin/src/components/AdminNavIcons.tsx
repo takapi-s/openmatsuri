@@ -44,6 +44,14 @@ export function IconMap({ className = "size-5" }: IconProps) {
   );
 }
 
+export function IconMembers({ className = "size-5" }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+      <path d="M10 9a3 3 0 100-6 3 3 0 000 6zM6.75 9a2.25 2.25 0 100-4.5 2.25 2.25 0 000 4.5zM1.615 16.428a1.224 1.224 0 01-.569-1.036 3.002 3.002 0 013.912-2.874 2.996 2.996 0 012.883 2.2 1.223 1.223 0 01-1.036.569H1.615zM16.385 16.428a1.224 1.224 0 001.036-1.036 3.002 3.002 0 00-3.912-2.874 2.996 2.996 0 00-2.883 2.2 1.223 1.223 0 001.036.569h3.723zM10 11.25a4.25 4.25 0 00-4.25 4.25.75.75 0 00.75.75h7a.75.75 0 00.75-.75 4.25 4.25 0 00-4.25-4.25z" />
+    </svg>
+  );
+}
+
 export function IconRoute({ className = "size-5" }: IconProps) {
   return (
     <svg className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden>

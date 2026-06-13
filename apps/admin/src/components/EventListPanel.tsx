@@ -1,6 +1,6 @@
 "use client";
 
-import type { EventWithOrg, OrgSummary } from "@/lib/events";
+import type { EventWithOrg, OrgMembership } from "@/lib/events";
 import { AdminCard } from "@/components/AdminCard";
 import { Badge } from "@openmatsuri/ui";
 import Link from "next/link";
@@ -20,7 +20,7 @@ const STATUS_COLORS = {
 
 type Props = {
   events: EventWithOrg[];
-  organizations: OrgSummary[];
+  organizations: OrgMembership[];
 };
 
 export function EventListPanel({ events, organizations }: Props) {
