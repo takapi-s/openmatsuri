@@ -93,6 +93,20 @@ PostgreSQL + PostGIS（Supabase）のスキーマ・RLS・データフローは 
 
 [docs/soracom-setup.md](./docs/soracom-setup.md) を参照。
 
+## コントリビュート歓迎
+
+OpenMATSURI は OSS です。**Issue・PR・フィードバックを歓迎します。**
+
+気軽に取り組める例:
+
+- バグ報告・再現手順の共有
+- ドキュメントや README の改善
+- Viewer / Tracker / Admin の UI・UX 改善
+- マップ表示・リアルタイム周りの機能追加
+- テスト・型・リファクタリング
+
+大きな変更を入れる場合は、先に Issue で方針を相談してもらえると助かります。
+
 ## ライセンス
 
 MIT
